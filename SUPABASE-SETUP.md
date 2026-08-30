@@ -50,17 +50,11 @@ supabase functions deploy send-notification-email --no-verify-jwt
 
 - **`create-agent`** — super-admin-only. Invites a new staff member by email (`role: 'agent'` metadata) and adds them to `admin_users`.
 - **`manage-agent`** — super-admin-only. `{ action: 'promote' | 'demote' | 'deactivate', user_id }`.
-- **`send-notification-email`** — called by a **Database Webhook** (not a user), so it's deployed with `--no-verify-jwt` and instead checks a shared secret header. Set it up in the Dashboard: **Database → Webhooks → Create a new hook** → table `notifications`, event `INSERT`, target the deployed function URL, and add an HTTP header `x-webhook-secret: <same value as NOTIFICATION_WEBHOOK_SECRET>`.
+- **`send-notification-email`** — called by a **Database Webhook** (not a user), so it's deployed with `--no-verify-jwt` and instead checks a shared secret header.
 
-Required secrets (`supabase secrets set NAME=value`) — `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically by the platform, everything else is not:
+All three functions are deployed and live on the project. Secrets are already set (`RESEND_API_KEY`, `NOTIFICATION_FROM_EMAIL`, `NOTIFICATION_WEBHOOK_SECRET`) via `supabase secrets set`. `NOTIFICATION_FROM_EMAIL` currently uses Resend's shared test address because no sending domain has been verified yet — real delivery to non-test inboxes will be limited until a domain is added and verified in Resend, at which point update this secret to an address on that domain.
 
-```bash
-supabase secrets set RESEND_API_KEY=your_resend_key
-supabase secrets set NOTIFICATION_FROM_EMAIL="Barny Branding Co. <onboarding@resend.dev>"
-supabase secrets set NOTIFICATION_WEBHOOK_SECRET=a_random_string_you_pick
-```
-
-`NOTIFICATION_FROM_EMAIL` currently uses Resend's shared test address because no sending domain has been verified yet — real delivery to non-test inboxes will be limited until a domain is added and verified in Resend, at which point update this secret to an address on that domain.
+**Webhook wiring**: this project didn't have the Dashboard's Database Webhooks helper (`supabase_functions.http_request`) pre-provisioned, so `supabase/migrations/003_notification_webhook.sql` wires `public.notifications` inserts to `send-notification-email` directly via the `pg_net` extension instead — functionally identical to a Dashboard-created webhook. The shared secret is stored in **Supabase Vault** (`select vault.create_secret(value, 'notification_webhook_secret', ...)`), never committed to the repo; the trigger function looks it up by name at call time.
 
 A payment-verification function (`verify-flutterwave-payment`) is planned but not built yet — Flutterwave integration was deliberately deferred.
 
