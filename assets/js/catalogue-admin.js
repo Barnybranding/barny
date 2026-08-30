@@ -100,7 +100,7 @@ async function init() {
   if (!isSupabaseConfigured) return message('Configure Supabase in assets/js/supabase-config.js before using the admin portal.');
   const admin = await requireSuperAdmin(); if (!admin) return;
 
-  $('#logout').onclick = async () => { await signOut(); location.replace('../account/login.html'); };
+  $('#logout').onclick = async () => { await signOut(); location.replace('../admin/login.html'); };
   mountNotificationBell($('#notifBellContainer'));
 
   await loadAll();

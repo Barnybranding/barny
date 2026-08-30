@@ -6,6 +6,7 @@
 // form submission that used to live inline in the storefront page —
 // everything that depended on the product list.
 import { supabase, isSupabaseConfigured } from './supabase-client.js';
+import { skeletonCatalogue } from './skeleton.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -88,6 +89,7 @@ function categoryShelf(category, products) {
 async function loadCatalogue() {
   const root = $('#catalogueRoot');
   if (!root) return;
+  root.innerHTML = skeletonCatalogue();
   if (!isSupabaseConfigured) {
     root.innerHTML = '<div class="empty"><h3>Catalogue unavailable</h3><p>The store is not connected to its database yet.</p></div>';
     return;

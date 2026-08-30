@@ -4,6 +4,7 @@
 // admin) — this module just renders whatever the database allows.
 import { supabase } from './supabase-client.js';
 import { uploadToCloudinary, isCloudinaryConfigured } from './cloudinary-config.js';
+import { skeletonLines } from './skeleton.js';
 
 const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 
@@ -34,7 +35,7 @@ function bubble(message, myUserId) {
 export function mountChatPanel(container, orderId, myRole) {
   container.innerHTML = `
     <div class="chat-panel">
-      <div class="chat-messages" id="chatMessages"><div class="empty">Loading messages…</div></div>
+      <div class="chat-messages" id="chatMessages">${skeletonLines(3)}</div>
       <form class="chat-form" id="chatForm">
         <input type="file" id="chatFile" hidden accept="image/*,.pdf">
         <button type="button" class="button secondary chat-attach" id="chatAttachBtn" title="Attach a file">📎</button>
@@ -53,11 +54,25 @@ export function mountChatPanel(container, orderId, myRole) {
 
   let myUserId = null;
   let channel = null;
+  const renderedIds = new Set();
 
   function renderMessages(messages) {
     messagesEl.innerHTML = messages.length
       ? messages.map(m => bubble(m, myUserId)).join('')
       : '<div class="empty">No messages yet. Say hello.</div>';
+    messages.forEach(m => renderedIds.add(m.id));
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  // Shared by the realtime handler and the optimistic append after sending,
+  // so whichever arrives first renders it and the other is a no-op.
+  function appendMessage(message) {
+    if (renderedIds.has(message.id)) return;
+    renderedIds.add(message.id);
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = bubble(message, myUserId);
+    if (messagesEl.querySelector('.empty')) messagesEl.innerHTML = '';
+    messagesEl.appendChild(wrapper.firstElementChild);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
@@ -81,13 +96,7 @@ export function mountChatPanel(container, orderId, myRole) {
       .channel(`order-messages-${orderId}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'order_messages', filter: `order_id=eq.${orderId}`
-      }, payload => {
-        const bubbleEl = document.createElement('div');
-        bubbleEl.innerHTML = bubble(payload.new, myUserId);
-        if (messagesEl.querySelector('.empty')) messagesEl.innerHTML = '';
-        messagesEl.appendChild(bubbleEl.firstElementChild);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-      })
+      }, payload => appendMessage(payload.new))
       .subscribe();
   }
 
@@ -114,15 +123,16 @@ export function mountChatPanel(container, orderId, myRole) {
         attachment_url = uploaded.url;
         attachment_name = file.name;
       }
-      const { error } = await supabase.from('order_messages').insert({
+      const { data: inserted, error } = await supabase.from('order_messages').insert({
         order_id: orderId,
         sender_id: myUserId,
         sender_role: myRole,
         body,
         attachment_url,
         attachment_name
-      });
+      }).select('id, sender_id, sender_role, body, attachment_url, attachment_name, created_at').single();
       if (error) throw error;
+      appendMessage(inserted);
       input.value = '';
       fileInput.value = '';
       fileNameEl.hidden = true;

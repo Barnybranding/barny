@@ -58,7 +58,7 @@ async function init() {
   const admin = await requireSuperAdmin(); if (!admin) return;
   myUserId = admin.id;
 
-  $('#logout').onclick = async () => { await signOut(); location.replace('../account/login.html'); };
+  $('#logout').onclick = async () => { await signOut(); location.replace('../admin/login.html'); };
   mountNotificationBell($('#notifBellContainer'));
 
   await loadStaff();

@@ -40,23 +40,26 @@ export async function requireUser(redirectTo = './login.html') {
   return user;
 }
 
-export async function requireAdmin(redirectTo = '../account/dashboard.html') {
-  const user = await requireUser('../account/login.html');
+// notStaffRedirect only applies once someone IS signed in but isn't staff
+// (e.g. a customer visiting an admin URL). Someone with no session at all is
+// always sent to the dedicated staff login page, not the customer one.
+export async function requireAdmin(notStaffRedirect = '../account/dashboard.html') {
+  const user = await requireUser('./login.html');
   if (!user) return null;
   const { data, error } = await supabase.rpc('is_admin');
   if (error || data !== true) {
-    location.replace(redirectTo);
+    location.replace(notStaffRedirect);
     return null;
   }
   return user;
 }
 
-export async function requireSuperAdmin(redirectTo = './index.html') {
-  const user = await requireAdmin(redirectTo);
+export async function requireSuperAdmin(notStaffRedirect = './index.html') {
+  const user = await requireAdmin(notStaffRedirect);
   if (!user) return null;
   const { data, error } = await supabase.rpc('is_super_admin');
   if (error || data !== true) {
-    location.replace(redirectTo);
+    location.replace(notStaffRedirect);
     return null;
   }
   return user;

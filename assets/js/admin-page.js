@@ -148,7 +148,7 @@ async function init() {
     $('#catalogueLink').hidden = false;
   }
 
-  $('#logout').onclick = async () => { await signOut(); location.replace('../account/login.html'); };
+  $('#logout').onclick = async () => { await signOut(); location.replace('../admin/login.html'); };
 
   document.querySelectorAll('.sidebar [data-panel]').forEach(btn => btn.addEventListener('click', () => {
     switchPanel(btn.dataset.panel);

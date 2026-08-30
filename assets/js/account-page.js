@@ -3,6 +3,7 @@ import { signIn, signUp, signOut, sendPasswordReset, updatePassword } from './au
 import { getMyProfile, updateMyProfile, listMyOrders, getMyOrder } from './data.js';
 import { mountChatPanel } from './chat.js';
 import { mountNotificationBell } from './notifications.js';
+import { skeletonCards, skeletonLines } from './skeleton.js';
 
 const $ = selector => document.querySelector(selector);
 const page = document.body.dataset.page;
@@ -62,7 +63,11 @@ function safeReturn(defaultPath = './dashboard.html') {
 async function initLogin() {
   if (!requireConfiguration()) return;
   const { data } = await supabase.auth.getSession();
-  if (data.session) location.replace(safeReturn());
+  if (data.session) {
+    const { data: isStaff } = await supabase.rpc('is_admin');
+    location.replace(isStaff ? '../admin/index.html' : safeReturn());
+    return;
+  }
   const params = new URLSearchParams(location.search);
   if (params.has('verified')) message('Email confirmed. You can now sign in.', 'success');
   if (params.has('registered')) message('Your account was created. Please confirm your email, then sign in.', 'success');
@@ -76,7 +81,10 @@ async function initLogin() {
     setBusy(event.currentTarget, true, 'Signing in…');
     try {
       await signIn(email, password);
-      location.replace(safeReturn());
+      // Staff accounts have no customer profile, so send them to their own
+      // workspace instead of a customer dashboard that would fail to load.
+      const { data: isStaff } = await supabase.rpc('is_admin');
+      location.replace(isStaff ? '../admin/index.html' : safeReturn());
     } catch (error) {
       message(friendlyAuthError(error));
       setBusy(event.currentTarget, false);
@@ -170,6 +178,7 @@ async function initDashboard() {
   $('#logout').addEventListener('click', async event => { event.currentTarget.disabled = true; event.currentTarget.textContent = 'Logging out…'; await signOut(); location.replace('./login.html'); });
   const notifContainer = $('#notifBellContainer');
   if (notifContainer) mountNotificationBell(notifContainer, orderId => location.href = `./order.html?id=${encodeURIComponent(orderId)}`);
+  $('#orders').innerHTML = skeletonCards(3);
   try {
     const [profile, orders] = await Promise.all([getMyProfile(), listMyOrders()]);
     $('#welcome').textContent = `Welcome, ${profile.full_name || 'Customer'}`;
@@ -209,6 +218,8 @@ async function initOrder() {
   if (notifContainer) mountNotificationBell(notifContainer);
   const id = new URLSearchParams(location.search).get('id');
   if (!id) return message('No order was selected.');
+  $('#orderSummary').innerHTML = skeletonLines(6);
+  $('#timeline').innerHTML = skeletonLines(3);
   try {
     const order = await getMyOrder(id);
     $('#orderNumber').textContent = order.order_number;

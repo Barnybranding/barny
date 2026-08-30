@@ -9,3 +9,10 @@
 .chat-form{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff}.chat-input{flex:1;border:1px solid #aaa;border-radius:20px;padding:10px 14px;outline:none}.chat-attach{border-radius:50%;width:38px;height:38px;padding:0;min-height:0}.chat-send{border-radius:20px}.chat-file-name{padding:0 14px 10px;font-size:12px;color:var(--muted)}
 @media(max-width:760px){.notif-dropdown{width:280px;right:-60px}.chat-bubble{max-width:90%}}
 [hidden]{display:none!important}
+body{animation:barny-fade-in .18s ease}@keyframes barny-fade-in{from{opacity:0}to{opacity:1}}
+.skeleton{background:linear-gradient(90deg,#e9e9ea 25%,#f4f4f5 37%,#e9e9ea 63%);background-size:400% 100%;animation:skeleton-loading 1.4s ease infinite;border-radius:4px}
+@keyframes skeleton-loading{0%{background-position:100% 50%}100%{background-position:0% 50%}}
+.skeleton-card{height:64px;border-radius:5px;margin-bottom:12px}
+.skeleton-line{height:12px;border-radius:3px}
+.skeleton-shelf{margin-bottom:22px}.skeleton-shelf-head{height:20px;width:220px;margin-bottom:14px}.skeleton-rail{display:flex;gap:10px;overflow:hidden}.skeleton-product{flex:1;min-width:0;aspect-ratio:1;border-radius:4px}
+@media(min-width:761px){.skeleton-rail{display:grid;grid-template-columns:repeat(6,1fr)}}
