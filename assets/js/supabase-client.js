@@ -50,3 +50,25 @@ export async function requireAdmin(redirectTo = '../account/dashboard.html') {
   }
   return user;
 }
+
+export async function requireSuperAdmin(redirectTo = './index.html') {
+  const user = await requireAdmin(redirectTo);
+  if (!user) return null;
+  const { data, error } = await supabase.rpc('is_super_admin');
+  if (error || data !== true) {
+    location.replace(redirectTo);
+    return null;
+  }
+  return user;
+}
+
+// 'super_admin', 'agent' or null (not staff). Assumes the caller already
+// knows a user is signed in.
+export async function getStaffRole() {
+  assertConfigured();
+  const { data: isSuper } = await supabase.rpc('is_super_admin');
+  if (isSuper) return 'super_admin';
+  const { data: isStaff } = await supabase.rpc('is_admin');
+  if (isStaff) return 'agent';
+  return null;
+}

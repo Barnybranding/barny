@@ -1,6 +1,8 @@
 import { isSupabaseConfigured, supabase, requireUser } from './supabase-client.js';
 import { signIn, signUp, signOut, sendPasswordReset, updatePassword } from './auth.js';
 import { getMyProfile, updateMyProfile, listMyOrders, getMyOrder } from './data.js';
+import { mountChatPanel } from './chat.js';
+import { mountNotificationBell } from './notifications.js';
 
 const $ = selector => document.querySelector(selector);
 const page = document.body.dataset.page;
@@ -166,6 +168,8 @@ async function initDashboard() {
   if (!requireConfiguration()) return;
   const user = await requireUser(); if (!user) return;
   $('#logout').addEventListener('click', async event => { event.currentTarget.disabled = true; event.currentTarget.textContent = 'Logging out…'; await signOut(); location.replace('./login.html'); });
+  const notifContainer = $('#notifBellContainer');
+  if (notifContainer) mountNotificationBell(notifContainer, orderId => location.href = `./order.html?id=${encodeURIComponent(orderId)}`);
   try {
     const [profile, orders] = await Promise.all([getMyProfile(), listMyOrders()]);
     $('#welcome').textContent = `Welcome, ${profile.full_name || 'Customer'}`;
@@ -201,6 +205,8 @@ async function initOrder() {
   if (!requireConfiguration()) return;
   const user = await requireUser(); if (!user) return;
   $('#logout').addEventListener('click', async event => { event.currentTarget.disabled = true; event.currentTarget.textContent = 'Logging out…'; await signOut(); location.replace('./login.html'); });
+  const notifContainer = $('#notifBellContainer');
+  if (notifContainer) mountNotificationBell(notifContainer);
   const id = new URLSearchParams(location.search).get('id');
   if (!id) return message('No order was selected.');
   try {
@@ -215,6 +221,7 @@ async function initOrder() {
       <div><small>Order total</small><strong>${money(order.total_amount)}</strong></div>`;
     $('#items').innerHTML = order.order_items.map(item => `<tr><td>${escapeHtml(item.product_name)}</td><td>${item.quantity}</td><td>${money(item.unit_price)}</td><td>${money(item.subtotal)}</td></tr>`).join('');
     $('#timeline').innerHTML = [...order.order_status_history].sort((a,b) => new Date(b.created_at)-new Date(a.created_at)).map(item => `<div class="timeline-item"><h4>${escapeHtml(item.status.replaceAll('_',' '))}</h4><p>${escapeHtml(item.description || '')}</p><small>${date(item.created_at)}</small></div>`).join('');
+    mountChatPanel($('#chatContainer'), order.id, 'customer');
   } catch (error) { message(error.message || 'This order could not be loaded.'); }
 }
 
