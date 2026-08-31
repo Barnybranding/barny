@@ -2,7 +2,7 @@ import { isSupabaseConfigured, requireSuperAdmin } from './supabase-client.js';
 import { signOut } from './auth.js';
 import {
   listCategoriesAdmin, createCategory, updateCategory, deleteCategory,
-  listProductsAdmin, createProduct, updateProduct, deleteProduct
+  listProductsAdmin, createProduct, updateProduct, deleteProduct, deleteCloudinaryAsset
 } from './data.js';
 import { uploadToCloudinary, isCloudinaryConfigured } from './cloudinary-config.js';
 import { mountNotificationBell } from './notifications.js';
@@ -57,8 +57,13 @@ function renderProducts() {
   $('#productList').querySelectorAll('[data-edit-product]').forEach(btn => btn.onclick = () => startEdit(btn.dataset.editProduct));
   $('#productList').querySelectorAll('[data-delete-product]').forEach(btn => btn.onclick = async () => {
     if (!confirm('Delete this product? This cannot be undone.')) return;
-    try { await deleteProduct(btn.dataset.deleteProduct); message('Product deleted.', 'success'); await loadAll(); }
-    catch (error) { message(error.message || 'Could not delete the product.'); }
+    const target = products.find(p => p.id === btn.dataset.deleteProduct);
+    try {
+      await deleteProduct(btn.dataset.deleteProduct);
+      message('Product deleted.', 'success');
+      await loadAll();
+      if (target?.image_public_id) deleteCloudinaryAsset(target.image_public_id);
+    } catch (error) { message(error.message || 'Could not delete the product.'); }
   });
 }
 
@@ -139,6 +144,10 @@ async function init() {
       };
       if (image_url) { payload.image_url = image_url; payload.image_public_id = image_public_id; }
 
+      const previousImagePublicId = editingProductId
+        ? products.find(p => p.id === editingProductId)?.image_public_id
+        : null;
+
       if (editingProductId) {
         await updateProduct(editingProductId, payload);
         message('Product updated.', 'success');
@@ -148,6 +157,12 @@ async function init() {
       }
       resetForm();
       await loadAll();
+
+      // Only clean up the old image once the new one is safely saved, and
+      // only when it was actually replaced (not just re-saving the form).
+      if (image_public_id && previousImagePublicId && previousImagePublicId !== image_public_id) {
+        deleteCloudinaryAsset(previousImagePublicId);
+      }
     } catch (error) {
       message(error.message || 'Could not save the product.');
     } finally {

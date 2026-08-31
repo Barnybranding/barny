@@ -83,9 +83,14 @@ Two independent senders, both routed through Resend's verified `barny.online` do
 
 Both were verified sending for real (not just configured) by triggering a live signup and checking Resend's send log.
 
-## 9. Production recommendations still open
+The project-wide Auth email rate limit (`rate_limit_email_sent`, an hourly figure — there's no separate daily setting) is set to 10/hour (~240/day headroom).
+
+## 9. Catalogue image cleanup
+
+`delete-cloudinary-asset` (super-admin-only Edge Function) deletes a Cloudinary asset by `public_id`, signing the request server-side with `CLOUDINARY_API_KEY`/`CLOUDINARY_API_SECRET` secrets (never exposed to the browser — the unsigned upload preset used for uploads can't delete anything). `catalogue-admin.js` calls it automatically: after a product's image is replaced, the old one is deleted; after a product is deleted, its image is deleted. Both are best-effort (a Cloudinary hiccup won't block or fail the actual save/delete) and verified working end-to-end with a disposable test product.
+
+## 10. Production recommendations still open
 
 - Add CAPTCHA/Turnstile to signup and password reset.
 - Configure database backups.
 - Build and wire up `verify-flutterwave-payment` before accepting real payments; never let the browser mark a payment as successful directly.
-- Cloudinary cleanup: replacing/deleting a product image currently leaves the old asset orphaned rather than deleting it from Cloudinary.

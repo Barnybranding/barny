@@ -234,6 +234,14 @@ export async function deleteProduct(id) {
   if (error) throw error;
 }
 
+// Best-effort: catalogue images are a courtesy cleanup, not something that
+// should block or fail the product save/delete if Cloudinary hiccups.
+export async function deleteCloudinaryAsset(publicId) {
+  if (!publicId) return;
+  try { await callEdgeFunction('delete-cloudinary-asset', { public_id: publicId }); }
+  catch (error) { console.warn('Cloudinary cleanup failed for', publicId, error.message); }
+}
+
 export async function listStaff() {
   assertConfigured();
   const { data, error } = await supabase.rpc('list_staff');
