@@ -7,10 +7,12 @@ if (accountLink && isSupabaseConfigured) {
     const label = accountLink.querySelector('.label');
     if (session?.user) {
       accountLink.href = 'account/dashboard.html';
-      if (label) label.textContent = 'My Account';
+      accountLink.classList.add('signed-in');
+      if (label) label.textContent = 'My Dashboard';
       accountLink.setAttribute('aria-label', 'Open customer dashboard');
     } else {
       accountLink.href = 'account/login.html';
+      accountLink.classList.remove('signed-in');
       if (label) label.textContent = 'Login';
       accountLink.setAttribute('aria-label', 'Customer login');
     }
