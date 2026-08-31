@@ -12,11 +12,16 @@ function timeLabel(iso) {
   return new Intl.DateTimeFormat('en-NG', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso));
 }
 
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|bmp|avif|heic)(\?.*)?$/i;
+
 function bubble(message, myUserId) {
   const mine = message.sender_id === myUserId;
   const roleLabel = { customer: 'Customer', agent: 'Agent', super_admin: 'Admin' }[message.sender_role] || message.sender_role;
+  const isImage = message.attachment_url && IMAGE_EXT_RE.test(message.attachment_name || message.attachment_url);
   const attachment = message.attachment_url
-    ? `<a class="chat-attachment" href="${escapeHtml(message.attachment_url)}" target="_blank" rel="noopener">📎 ${escapeHtml(message.attachment_name || 'Attachment')}</a>`
+    ? isImage
+      ? `<a class="chat-image-link" href="${escapeHtml(message.attachment_url)}" target="_blank" rel="noopener"><img class="chat-image" src="${escapeHtml(message.attachment_url)}" alt="${escapeHtml(message.attachment_name || 'Photo')}" loading="lazy"></a>`
+      : `<a class="chat-attachment" href="${escapeHtml(message.attachment_url)}" target="_blank" rel="noopener">📎 ${escapeHtml(message.attachment_name || 'Attachment')}</a>`
     : '';
   return `<div class="chat-bubble ${mine ? 'mine' : 'theirs'}">
     <div class="chat-meta">${escapeHtml(roleLabel)} · ${timeLabel(message.created_at)}</div>

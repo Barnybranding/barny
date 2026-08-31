@@ -178,6 +178,13 @@ async function initDashboard() {
   $('#logout').addEventListener('click', async event => { event.currentTarget.disabled = true; event.currentTarget.textContent = 'Logging out…'; await signOut(); location.replace('./login.html'); });
   const notifContainer = $('#notifBellContainer');
   if (notifContainer) mountNotificationBell(notifContainer, orderId => location.href = `./order.html?id=${encodeURIComponent(orderId)}`);
+
+  const { data: isStaff } = await supabase.rpc('is_admin');
+  if (isStaff) {
+    $('#adminWorkspaceLink')?.removeAttribute('hidden');
+    $('#adminWorkspaceLink2')?.removeAttribute('hidden');
+  }
+
   $('#orders').innerHTML = skeletonCards(3);
   try {
     const [profile, orders] = await Promise.all([getMyProfile(), listMyOrders()]);
@@ -195,7 +202,16 @@ async function initDashboard() {
         </div>
         <div><span class="status ${escapeHtml(order.order_status)}">${escapeHtml(order.order_status.replaceAll('_',' '))}</span><br><a href="./order.html?id=${encodeURIComponent(order.id)}">View order</a></div>
       </article>`).join('') : '<div class="empty"><h3>No orders yet</h3><p>Your submitted website quote requests will appear here.</p><a class="button" href="../barny-ordering-site.html">Browse products</a></div>';
-  } catch (error) { message(error.message || 'Unable to load the dashboard.'); }
+  } catch (error) {
+    // Staff accounts don't get a customer profile by design (they operate
+    // through the admin workspace), so PGRST116 here just means "there's
+    // nothing to show" rather than a real failure.
+    if (isStaff && error.code === 'PGRST116') {
+      $('#orders').innerHTML = '<div class="empty"><h3>No customer profile</h3><p>Staff accounts don\'t have a customer profile. Use "Admin workspace" above to get back to your work.</p></div>';
+    } else {
+      message(error.message || 'Unable to load the dashboard.');
+    }
+  }
   $('#profileForm').addEventListener('submit', async event => {
     event.preventDefault(); setBusy(event.currentTarget, true, 'Saving…');
     try {
@@ -216,6 +232,8 @@ async function initOrder() {
   $('#logout').addEventListener('click', async event => { event.currentTarget.disabled = true; event.currentTarget.textContent = 'Logging out…'; await signOut(); location.replace('./login.html'); });
   const notifContainer = $('#notifBellContainer');
   if (notifContainer) mountNotificationBell(notifContainer);
+  const { data: isStaff } = await supabase.rpc('is_admin');
+  if (isStaff) $('#adminWorkspaceLink')?.removeAttribute('hidden');
   const id = new URLSearchParams(location.search).get('id');
   if (!id) return message('No order was selected.');
   $('#orderSummary').innerHTML = skeletonLines(6);

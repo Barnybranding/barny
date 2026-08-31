@@ -4,8 +4,8 @@
     {
       "name": "barny-static",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8317"],
-      "port": 8317
+      "runtimeArgs": ["-m", "http.server", "8402"],
+      "port": 8402
     }
   ]
 }
