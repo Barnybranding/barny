@@ -15,6 +15,21 @@ const escapeHtml = (value = '') => String(value).replace(/[&<>'"]/g, c => ({ '&'
 const ADD_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2 11h10l3-8H6"/><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></svg>';
 const ARROW_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg>';
 
+// Same glyph set the storefront's static sidebar used to hardcode, now cycled
+// by position so every live category gets an icon without storing one in the DB.
+const CATEGORY_GLYPHS = ['▦', '✦', '▤', '◆', '◉', '▣'];
+
+// Cloudinary can resize/compress on the fly from the same stored URL — inserting
+// a transform segment right after "/upload/" avoids shipping full-resolution
+// originals for what are, on the storefront, small thumbnail-sized images.
+function cld(url, transform) {
+  if (!url || !url.includes('res.cloudinary.com') || !url.includes('/upload/')) return url;
+  return url.replace('/upload/', `/upload/${transform}/`);
+}
+const thumbUrl = url => cld(url, 'w_360,h_360,c_fill,q_auto,f_auto');
+const cartThumbUrl = url => cld(url, 'w_100,h_100,c_fill,q_auto,f_auto');
+const modalUrl = url => cld(url, 'w_900,q_auto,f_auto');
+
 let byId = {};
 let current = null;
 let cart = {};
@@ -58,7 +73,7 @@ function renderCart() {
   list.innerHTML = ids.map(id => {
     const p = byId[id];
     if (!p) return '';
-    return `<div class="cart-item"><img src="${escapeHtml(p.img || '')}" alt=""><div><h4>${escapeHtml(p.name)}</h4><small>${escapeHtml(p.cat)}</small><div class="qty"><button data-minus="${id}">−</button><b>${cart[id]}</b><button data-plus="${id}">+</button></div></div><button class="remove" data-remove="${id}">Remove</button></div>`;
+    return `<div class="cart-item"><img src="${escapeHtml(cartThumbUrl(p.img) || '')}" alt=""><div><h4>${escapeHtml(p.name)}</h4><small>${escapeHtml(p.cat)}</small><div class="qty"><button data-minus="${id}">−</button><b>${cart[id]}</b><button data-plus="${id}">+</button></div></div><button class="remove" data-remove="${id}">Remove</button></div>`;
   }).join('');
 }
 
@@ -66,7 +81,7 @@ function openProduct(id) {
   const p = byId[id];
   if (!p) return;
   current = id;
-  $('#modalImg').src = p.img || '';
+  $('#modalImg').src = modalUrl(p.img) || '';
   $('#modalTitle').textContent = p.name;
   $('#modalCat').textContent = p.cat;
   $('#modalDesc').textContent = p.desc;
@@ -76,7 +91,7 @@ function openProduct(id) {
 function productCard(p) {
   return `<article class="product" data-name="${escapeHtml(p.name.toLowerCase())}" data-cat="${escapeHtml(p.cat.toLowerCase())}">
     <button class="wish" aria-label="Save ${escapeHtml(p.name)}">♡</button>
-    <button class="product-open" data-id="${p.id}"><img loading="lazy" src="${escapeHtml(p.img || '')}" alt="${escapeHtml(p.name)}"></button>
+    <button class="product-open" data-id="${p.id}"><img loading="lazy" src="${escapeHtml(thumbUrl(p.img) || '')}" alt="${escapeHtml(p.name)}"></button>
     <div class="product-copy"><h3>${escapeHtml(p.name)}</h3><p>${escapeHtml(p.desc)}</p><div class="rating">★★★★★ <span>Custom made</span></div><button class="add" data-id="${p.id}">${ADD_ICON} Add to quote</button></div>
   </article>`;
 }
@@ -86,10 +101,27 @@ function categoryShelf(category, products) {
   return `<section class="shelf" id="${shelfId}"><header class="shelf-head"><div><h2>${escapeHtml(category.name)}</h2><p>${escapeHtml(tagline(category.name))}</p></div><button class="see-all" data-expand="${shelfId}">See all ${ARROW_ICON}</button></header><div class="rail">${products.map(productCard).join('')}</div></section>`;
 }
 
+function renderNavCategories(categories) {
+  const nav = $('#navCategories');
+  if (nav) nav.innerHTML = categories.map(c => `<button data-jump="cat-${c.slug}">${escapeHtml(c.name)}</button>`).join('');
+}
+
+function renderSideCategories(categories) {
+  const side = $('#sideCategories');
+  if (!side) return;
+  side.innerHTML = categories.map((c, i) =>
+    `<a href="#cat-${c.slug}"><span>${CATEGORY_GLYPHS[i % CATEGORY_GLYPHS.length]}</span>${escapeHtml(c.name)}</a>`
+  ).join('');
+}
+
 async function loadCatalogue() {
   const root = $('#catalogueRoot');
+  const nav = $('#navCategories');
+  const side = $('#sideCategories');
+  if (nav) nav.innerHTML = Array.from({ length: 6 }, () => '<div class="skeleton skeleton-pill"></div>').join('');
+  if (side) side.innerHTML = Array.from({ length: 10 }, () => '<div class="skeleton skeleton-sidecat"></div>').join('');
+  if (root) root.innerHTML = skeletonCatalogue();
   if (!root) return;
-  root.innerHTML = skeletonCatalogue();
   if (!isSupabaseConfigured) {
     root.innerHTML = '<div class="empty"><h3>Catalogue unavailable</h3><p>The store is not connected to its database yet.</p></div>';
     return;
@@ -101,6 +133,9 @@ async function loadCatalogue() {
     ]);
     if (catError) throw catError;
     if (prodError) throw prodError;
+
+    renderNavCategories(categories);
+    renderSideCategories(categories);
 
     const byCategory = new Map(categories.map(c => [c.id, { ...c, products: [] }]));
     byId = {};
@@ -120,6 +155,8 @@ async function loadCatalogue() {
     renderCart();
   } catch (error) {
     root.innerHTML = `<div class="empty"><h3>Could not load the catalogue</h3><p>${escapeHtml(error.message || 'Please try again shortly.')}</p></div>`;
+    if (nav) nav.innerHTML = '';
+    if (side) side.innerHTML = '';
   }
 }
 
